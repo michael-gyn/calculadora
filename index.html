@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora Universal de Rescisão CLT com Impostos</title>
+    <title>Calculadora Universal de Rescisão CLT com Impostos e FGTS</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f3f4f6; padding: 20px; color: #1f2937; }
         .container { max-width: 700px; margin: 0 auto; background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -24,7 +24,10 @@
         .text-green { color: #059669; font-weight: 500; }
         .text-muted { color: #6b7280; font-size: 12px; }
         
-        .total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 20px; color: #059669; margin-top: 20px; padding-top: 16px; border-top: 3px solid #e5e7eb; }
+        .total-empresa { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; color: #1f2937; margin-top: 12px; padding-top: 12px; border-top: 2px solid #d1d5db; }
+        .total-geral { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 20px; color: #059669; margin-top: 24px; padding: 20px; background-color: #ecfdf5; border: 2px solid #34d399; border-radius: 8px; }
+        .total-geral span:first-child { display: flex; flex-direction: column; }
+        .sub-label { font-size: 12px; color: #047857; font-weight: normal; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -35,7 +38,7 @@
     <div class="grid">
         <div class="form-group">
             <label>Salário Bruto (R$)</label>
-            <input type="number" id="salario" value="2000" oninput="calcular()">
+            <input type="number" id="salario" value="7400" oninput="calcular()">
         </div>
         <div class="form-group">
             <label>Saldo Atual do FGTS (R$)</label>
@@ -88,29 +91,35 @@
     </div>
 
     <div class="card">
-        <div class="card-title">Proventos (Verbas a Receber)</div>
+        <div class="card-title">1. Rescisão (Pago pela Empresa)</div>
         <div class="result-row"><span>Saldo de Salário (<span id="txtDias">0</span> dias)</span> <span id="valSaldoSalario">R$ 0,00</span></div>
         <div class="result-row"><span>Aviso Prévio Indenizado</span> <span id="valAvisoInd">R$ 0,00</span></div>
         <div class="result-row"><span>13º Salário Proporcional</span> <span id="val13">R$ 0,00</span></div>
         <div class="result-row"><span>Férias Vencidas (+ 1/3)</span> <span id="valFeriasV">R$ 0,00</span></div>
         <div class="result-row"><span>Férias Proporcionais (+ 1/3)</span> <span id="valFeriasP">R$ 0,00</span></div>
-    </div>
-
-    <div class="card">
-        <div class="card-title text-red">Descontos (Impostos e Deduções)</div>
-        <div class="result-row"><span>Aviso Prévio Não Cumprido</span> <span id="valDescontoAviso" class="text-red">R$ 0,00</span></div>
+        
+        <div class="result-row" style="margin-top: 16px;"><span>Aviso Prévio Não Cumprido</span> <span id="valDescontoAviso" class="text-red">R$ 0,00</span></div>
         <div class="result-row"><span>INSS (Salário + 13º)</span> <span id="valINSS" class="text-red">R$ 0,00</span></div>
         <div class="result-row"><span>IRRF Retido na Fonte</span> <span id="valIRRF" class="text-red">R$ 0,00</span></div>
+        
+        <div class="total-empresa">
+            <span>Subtotal (Líquido da Empresa)</span>
+            <span id="valSubtotalEmpresa">R$ 0,00</span>
+        </div>
     </div>
 
     <div class="card">
-        <div class="card-title">FGTS (Liberado para Saque na Caixa)</div>
+        <div class="card-title">2. FGTS (Liberado pela Caixa)</div>
+        <div class="result-row"><span>Saque do Saldo Base</span> <span id="valSaqueBase" class="text-green">R$ 0,00</span></div>
         <div class="result-row"><span>Multa Rescisória</span> <span id="valMulta" class="text-green">R$ 0,00</span></div>
-        <div class="result-row text-muted" style="border: none;">* O saque do saldo base e da multa dependem da modalidade de demissão.</div>
+        <div class="result-row text-muted" style="border: none; margin-top: 8px;">* Valores disponíveis dependem da regra da sua demissão.</div>
     </div>
 
-    <div class="total-row">
-        <span>Total Líquido Estimado da Rescisão</span>
+    <div class="total-geral">
+        <span>
+            Total Dinheiro no Bolso
+            <span class="sub-label">Soma da Rescisão + Saques do FGTS liberados</span>
+        </span>
         <span id="valTotal">R$ 0,00</span>
     </div>
 </div>
@@ -178,33 +187,51 @@
 
         document.getElementById('txtDias').innerText = diasMes;
 
+        // Variáveis Verbas Rescisórias
         let saldoSalario = (salario / 30) * diasMes;
         let valorAvisoIndenizado = 0;
         let descontoAviso = 0;
         let val13 = 0;
         let valFeriasV = 0;
         let valFeriasP = 0;
-        let multa = 0;
         let projecaoAvisoMeses = 0;
+
+        // Variáveis FGTS
+        let multa = 0;
+        let saqueBaseFGTS = 0;
 
         let diasAviso = Math.min(30 + (anosEmpresa * 3), 90);
 
+        // Regras por Motivo
         if (motivo === 'semJustaCausa') {
+            saqueBaseFGTS = saldoFGTS; // Saca 100% do FGTS
+            multa = saldoFGTS * 0.40;  // Multa de 40%
+
             if (aviso === 'indenizado') {
                 valorAvisoIndenizado = (salario / 30) * diasAviso;
                 projecaoAvisoMeses = Math.round(diasAviso / 30);
             }
         } else if (motivo === 'pedidoDemissao') {
+            saqueBaseFGTS = 0; // Fica retido
+            multa = 0;         // Sem multa
+
             if (aviso === 'descontado') {
                 descontoAviso = salario;
             }
         } else if (motivo === 'acordo') {
+            saqueBaseFGTS = saldoFGTS * 0.80; // Saca 80% do FGTS
+            multa = saldoFGTS * 0.20;         // Multa de 20%
+
             if (aviso === 'indenizado') {
                 valorAvisoIndenizado = ((salario / 30) * diasAviso) / 2;
                 projecaoAvisoMeses = Math.round(diasAviso / 30);
             }
+        } else if (motivo === 'justaCausa') {
+            saqueBaseFGTS = 0; // Fica retido
+            multa = 0;         // Sem multa
         }
 
+        // Férias e 13º
         if (temFeriasVencidas) {
             valFeriasV = salario + (salario / 3);
         }
@@ -217,14 +244,7 @@
             valFeriasP = ((salario / 12) * totalMesesFerias) * 1.3333;
         }
 
-        if (motivo === 'semJustaCausa') {
-            multa = saldoFGTS * 0.40;
-        } else if (motivo === 'acordo') {
-            multa = saldoFGTS * 0.20;
-        }
-
         // CÁLCULO DOS IMPOSTOS (INSS e IRRF)
-        // Calculados separadamente para Saldo de Salário e 13º
         const inssSalario = calcularINSS(saldoSalario);
         const inss13 = calcularINSS(val13);
         const totalINSS = inssSalario + inss13;
@@ -233,9 +253,15 @@
         const baseIRRF_13 = val13 - inss13;
         const totalIRRF = calcularIRRF(baseIRRF_Salario) + calcularIRRF(baseIRRF_13);
 
+        // Somas Finais
         const totalProventos = saldoSalario + valorAvisoIndenizado + val13 + valFeriasV + valFeriasP;
         const totalDescontos = descontoAviso + totalINSS + totalIRRF;
-        const totalLiquido = totalProventos - totalDescontos;
+        
+        // O que a empresa deposita na conta
+        const subtotalEmpresa = totalProventos - totalDescontos;
+        
+        // Total Geral: Empresa + CEF (O dinheiro real no bolso)
+        const totalDinheiroBolso = subtotalEmpresa + saqueBaseFGTS + multa;
 
         // Atualização da Tela
         document.getElementById('valSaldoSalario').innerText = formatarMoeda(saldoSalario);
@@ -247,9 +273,15 @@
         document.getElementById('valDescontoAviso').innerText = "- " + formatarMoeda(descontoAviso);
         document.getElementById('valINSS').innerText = "- " + formatarMoeda(totalINSS);
         document.getElementById('valIRRF').innerText = "- " + formatarMoeda(totalIRRF);
+        
+        document.getElementById('valSubtotalEmpresa').innerText = formatarMoeda(Math.max(subtotalEmpresa, 0));
+
+        // FGTS
+        document.getElementById('valSaqueBase').innerText = formatarMoeda(saqueBaseFGTS);
         document.getElementById('valMulta').innerText = formatarMoeda(multa);
         
-        document.getElementById('valTotal').innerText = formatarMoeda(Math.max(totalLiquido, 0));
+        // Total Geral
+        document.getElementById('valTotal').innerText = formatarMoeda(Math.max(totalDinheiroBolso, 0));
     }
 
     calcular();
